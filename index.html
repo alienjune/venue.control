@@ -225,36 +225,51 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
 <script>
-const STORAGE_KEY = "gym_floor_users_v9";
-const SELECTED_KEY = "gym_floor_selected_v9";
+const firebaseConfig = {
+  apiKey: "AIzaSyCc83KCedhx86ymui43WnUNWlA4_wZ4XYA",
+  authDomain: "venue-control.firebaseapp.com",
+  databaseURL: "https://venue-control-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "venue-control",
+  storageBucket: "venue-control.firebasestorage.app",
+  messagingSenderId: "177469102050",
+  appId: "1:177469102050:web:bbff34ac20422198f8cbbb",
+  measurementId: "G-N4WDZ7Z2CD"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 let users = {};
 let selectedUser = null;
 
-function loadUsers() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-function saveUsers() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-}
-
-function loadSelectedUser() {
-  return localStorage.getItem(SELECTED_KEY) || null;
-}
+const inGymZones = [
+  "GymB",
+  "gym外沙發",
+  "GymA",
+  "Room",
+  "前台沙發",
+  "休憩區",
+  "女湯",
+  "男湯",
+  "GymA陽台",
+  "GymB陽台",
+  "A5"
+];
 
 function saveSelectedUser() {
   if (selectedUser) {
-    localStorage.setItem(SELECTED_KEY, selectedUser);
+    sessionStorage.setItem("gym_floor_selected_session", selectedUser);
   } else {
-    localStorage.removeItem(SELECTED_KEY);
+    sessionStorage.removeItem("gym_floor_selected_session");
   }
+}
+
+function loadSelectedUser() {
+  return sessionStorage.getItem("gym_floor_selected_session") || null;
 }
 
 function addUser() {
@@ -268,17 +283,19 @@ function addUser() {
     return;
   }
 
-  users[name] = {
+  const key = name;
+
+  db.ref("members/" + encodeURIComponent(key)).set({
     name: name,
     type: type,
     zone: "未入館"
-  };
-
-  selectedUser = name;
-  saveUsers();
-  saveSelectedUser();
-  nameInput.value = "";
-  renderAll();
+  }).then(() => {
+    selectedUser = name;
+    saveSelectedUser();
+    nameInput.value = "";
+  }).catch((error) => {
+    alert("新增失敗：" + error.message);
+  });
 }
 
 function selectUser(name) {
@@ -293,9 +310,10 @@ function moveSelectedTo(zone) {
     return;
   }
 
-  users[selectedUser].zone = zone;
-  saveUsers();
-  renderAll();
+  db.ref("members/" + encodeURIComponent(selectedUser) + "/zone").set(zone)
+    .catch((error) => {
+      alert("移動失敗：" + error.message);
+    });
 }
 
 function deleteSelectedUser() {
@@ -306,11 +324,14 @@ function deleteSelectedUser() {
 
   if (!confirm("確定刪除 " + selectedUser + " 嗎？")) return;
 
-  delete users[selectedUser];
-  selectedUser = null;
-  saveUsers();
-  saveSelectedUser();
-  renderAll();
+  db.ref("members/" + encodeURIComponent(selectedUser)).remove()
+    .then(() => {
+      selectedUser = null;
+      saveSelectedUser();
+    })
+    .catch((error) => {
+      alert("刪除失敗：" + error.message);
+    });
 }
 
 function typeText(type) {
@@ -356,20 +377,6 @@ function renderSelectedInfo() {
 }
 
 function updateMemberCounts() {
-  const inGymZones = [
-    "GymB",
-    "gym外沙發",
-    "GymA",
-    "Room",
-    "前台沙發",
-    "休憩區",
-    "女湯",
-    "男湯",
-    "GymA陽台",
-    "GymB陽台",
-    "A5"
-  ];
-
   let inGymMembers = 0;
   let totalMembers = 0;
 
@@ -378,7 +385,7 @@ function updateMemberCounts() {
 
     if (isMember) {
       totalMembers++;
-      if (inGymZones.indexOf(user.zone) !== -1) {
+      if (inGymZones.includes(user.zone)) {
         inGymMembers++;
       }
     }
@@ -397,10 +404,14 @@ function getFilteredZoneUsers(zoneName) {
     const keyword = document.getElementById("waitingSearch").value.trim().toLowerCase();
     if (keyword) {
       zoneUsers = zoneUsers.filter(function(user) {
-        return user.name.toLowerCase().indexOf(keyword) !== -1;
+        return user.name.toLowerCase().includes(keyword);
       });
     }
   }
+
+  zoneUsers.sort(function(a, b) {
+    return a.name.localeCompare(b.name, "zh-Hant");
+  });
 
   return zoneUsers;
 }
@@ -441,9 +452,9 @@ function renderZones() {
     zoneEl.appendChild(title);
     zoneEl.appendChild(list);
 
-    zoneEl.addEventListener("click", function() {
+    zoneEl.onclick = function() {
       moveSelectedTo(zoneName);
-    });
+    };
   });
 }
 
@@ -458,15 +469,31 @@ function renderAll() {
   updateMemberCounts();
 }
 
+function startRealtimeSync() {
+  db.ref("members").on("value", function(snapshot) {
+    const data = snapshot.val() || {};
+    const newUsers = {};
+
+    Object.keys(data).forEach(function(key) {
+      const user = data[key];
+      if (user && user.name) {
+        newUsers[user.name] = user;
+      }
+    });
+
+    users = newUsers;
+    renderAll();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-  users = loadUsers();
   selectedUser = loadSelectedUser();
 
   document.getElementById("addBtn").addEventListener("click", addUser);
   document.getElementById("deleteBtn").addEventListener("click", deleteSelectedUser);
   document.getElementById("waitingSearch").addEventListener("input", renderAll);
 
-  renderAll();
+  startRealtimeSync();
 });
 </script>
 
