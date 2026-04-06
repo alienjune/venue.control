@@ -310,11 +310,17 @@ function moveSelectedTo(zone) {
     return;
   }
 
+  const movingUser = selectedUser; // 🔥 記住當下的人
+
   db.ref("members/" + encodeURIComponent(selectedUser) + "/zone").set(zone)
     .then(() => {
-      selectedUser = null;      
+      selectedUser = null;
       saveSelectedUser();
-      renderAll();              
+
+      // 🔥 強制取消點擊殘留（關鍵）
+      setTimeout(() => {
+        renderAll();
+      }, 50);
     })
     .catch((error) => {
       alert("移動失敗：" + error.message);
