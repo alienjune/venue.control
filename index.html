@@ -311,6 +311,11 @@ function moveSelectedTo(zone) {
   }
 
   db.ref("members/" + encodeURIComponent(selectedUser) + "/zone").set(zone)
+    .then(() => {
+      selectedUser = null;      
+      saveSelectedUser();
+      renderAll();              
+    })
     .catch((error) => {
       alert("移動失敗：" + error.message);
     });
