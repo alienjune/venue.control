@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym 區域櫃檯版</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f3f4f6;
+    color: #222;
+  }
+
+  .topbar {
+    background: #fff;
+    padding: 14px;
+    border-bottom: 1px solid #ddd;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar h1 {
+    margin: 0 0 10px;
+    font-size: 24px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr auto auto;
+    gap: 10px;
+  }
+
+  input, select, button {
+    font-size: 18px;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #ccc;
+  }
+
+  input, select {
+    background: white;
+  }
+
+  button {
+    border: none;
+    background: #111827;
+    color: white;
+    cursor: pointer;
+    min-width: 110px;
+  }
+
+  .delete-btn {
+    background: #b91c1c;
+  }
+
+  .selected-info {
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+  }
+
+  .hint {
+    margin-top: 10px;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  .search-row {
+    margin-top: 10px;
+  }
+
+  .search-row input {
+    width: 100%;
+  }
+
+  .layout {
+    padding: 14px;
+  }
+
+  .row {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .row-1 { grid-template-columns: 1fr; }
+  .row-2 { grid-template-columns: 1.2fr 0.8fr 1.6fr; }
+  .row-3 { grid-template-columns: 1.2fr 0.8fr 1.2fr; }
+  .row-4 { grid-template-columns: 1fr 1fr; }
+  .row-5 { grid-template-columns: 0.9fr 0.9fr 0.9fr; }
+
+  .zone {
+    background: white;
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    border: 3px solid transparent;
+    min-height: 120px;
+  }
+
+  .zone.selected-target {
+    border-color: #111827;
+  }
+
+  .zone.long { min-height: 150px; }
+  .zone.large { min-height: 180px; }
+  .zone.medium { min-height: 135px; }
+  .zone.small { min-height: 110px; }
+
+  .zone-title {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    color: #111827;
+  }
+
+  .user-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .user-chip {
+    border: none;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    min-height: 42px;
+  }
+
+  .user-chip.selected {
+    outline: 4px solid #111827;
+  }
+
+  .male { background: #2563eb; color: white; }
+  .female { background: #dc2626; color: white; }
+  .male-clean { background: #facc15; color: #222; }
+  .female-clean { background: #f97316; color: white; }
+  .male-staff { background: #facc15; color: #222; }
+  .female-staff { background: #f97316; color: white; }
+
+  .empty {
+    color: #999;
+    font-size: 14px;
+  }
+
+  @media (max-width: 900px) {
+    .controls {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .row-2, .row-3, .row-4, .row-5 {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Gym 區域櫃檯版</h1>
+
+  <div class="controls">
+    <input id="nameInput" type="text" placeholder="輸入名字">
+    <select id="typeSelect">
+      <option value="male">男</option>
+      <option value="female">女</option>
+      <option value="male-clean">男清潔</option>
+      <option value="female-clean">女清潔</option>
+      <option value="male-staff">男工作人員</option>
+      <option value="female-staff">女工作人員</option>
+    </select>
+    <button id="addBtn" type="button">加入未入館</button>
+    <button id="deleteBtn" type="button" class="delete-btn">刪除此人</button>
+  </div>
+
+  <div class="selected-info" id="selectedInfo">目前未選取任何人</div>
+  <div class="selected-info" id="memberInGymCount">目前在館內會員：0 人</div>
+  <div class="selected-info" id="memberTotalCount">總會員人數：0 人</div>
+
+  <div class="search-row">
+    <input id="waitingSearch" type="text" placeholder="搜尋未入館名字">
+  </div>
+
+  <div class="hint">
+    先點名字，再點區域即可移動。只有按「加入未入館」才會新增。
+  </div>
+</div>
+
+<div class="layout">
+  <div class="row row-1">
+    <div class="zone long" data-zone="未入館"></div>
+  </div>
+
+  <div class="row row-2">
+    <div class="zone medium" data-zone="GymB"></div>
+    <div class="zone small" data-zone="gym外沙發"></div>
+    <div class="zone large" data-zone="GymA"></div>
+  </div>
+
+  <div class="row row-3">
+    <div class="zone medium" data-zone="Room"></div>
+    <div class="zone small" data-zone="前台沙發"></div>
+    <div class="zone medium" data-zone="休憩區"></div>
+  </div>
+
+  <div class="row row-4">
+    <div class="zone large" data-zone="女湯"></div>
+    <div class="zone large" data-zone="男湯"></div>
+  </div>
+
+  <div class="row row-5">
+    <div class="zone small" data-zone="GymA陽台"></div>
+    <div class="zone small" data-zone="GymB陽台"></div>
+    <div class="zone small" data-zone="A5"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "gym_floor_users_v9";
+const SELECTED_KEY = "gym_floor_selected_v9";
+
+let users = {};
+let selectedUser = null;
+
+function loadUsers() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveUsers() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+}
+
+function loadSelectedUser() {
+  return localStorage.getItem(SELECTED_KEY) || null;
+}
+
+function saveSelectedUser() {
+  if (selectedUser) {
+    localStorage.setItem(SELECTED_KEY, selectedUser);
+  } else {
+    localStorage.removeItem(SELECTED_KEY);
+  }
+}
+
+function addUser() {
+  const nameInput = document.getElementById("nameInput");
+  const typeSelect = document.getElementById("typeSelect");
+  const name = nameInput.value.trim();
+  const type = typeSelect.value;
+
+  if (!name) {
+    alert("請輸入名字");
+    return;
+  }
+
+  users[name] = {
+    name: name,
+    type: type,
+    zone: "未入館"
+  };
+
+  selectedUser = name;
+  saveUsers();
+  saveSelectedUser();
+  nameInput.value = "";
+  renderAll();
+}
+
+function selectUser(name) {
+  selectedUser = name;
+  saveSelectedUser();
+  renderAll();
+}
+
+function moveSelectedTo(zone) {
+  if (!selectedUser || !users[selectedUser]) {
+    alert("請先點一個名字");
+    return;
+  }
+
+  users[selectedUser].zone = zone;
+  saveUsers();
+  renderAll();
+}
+
+function deleteSelectedUser() {
+  if (!selectedUser || !users[selectedUser]) {
+    alert("請先點一個名字");
+    return;
+  }
+
+  if (!confirm("確定刪除 " + selectedUser + " 嗎？")) return;
+
+  delete users[selectedUser];
+  selectedUser = null;
+  saveUsers();
+  saveSelectedUser();
+  renderAll();
+}
+
+function typeText(type) {
+  const map = {
+    "male": "男",
+    "female": "女",
+    "male-clean": "男清潔",
+    "female-clean": "女清潔",
+    "male-staff": "男工作人員",
+    "female-staff": "女工作人員"
+  };
+  return map[type] || type;
+}
+
+function createUserChip(user) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "user-chip " + user.type;
+  btn.textContent = user.name;
+
+  if (selectedUser === user.name) {
+    btn.classList.add("selected");
+  }
+
+  btn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    selectUser(user.name);
+  });
+
+  return btn;
+}
+
+function renderSelectedInfo() {
+  const el = document.getElementById("selectedInfo");
+
+  if (!selectedUser || !users[selectedUser]) {
+    el.textContent = "目前未選取任何人";
+    return;
+  }
+
+  const user = users[selectedUser];
+  el.textContent = "目前選取：" + user.name + "｜" + typeText(user.type) + "｜目前在 " + user.zone;
+}
+
+function updateMemberCounts() {
+  const inGymZones = [
+    "GymB",
+    "gym外沙發",
+    "GymA",
+    "Room",
+    "前台沙發",
+    "休憩區",
+    "女湯",
+    "男湯",
+    "GymA陽台",
+    "GymB陽台",
+    "A5"
+  ];
+
+  let inGymMembers = 0;
+  let totalMembers = 0;
+
+  Object.values(users).forEach(function(user) {
+    const isMember = user.type === "male" || user.type === "female";
+
+    if (isMember) {
+      totalMembers++;
+      if (inGymZones.indexOf(user.zone) !== -1) {
+        inGymMembers++;
+      }
+    }
+  });
+
+  document.getElementById("memberInGymCount").textContent = "目前在館內會員：" + inGymMembers + " 人";
+  document.getElementById("memberTotalCount").textContent = "總會員人數：" + totalMembers + " 人";
+}
+
+function getFilteredZoneUsers(zoneName) {
+  let zoneUsers = Object.values(users).filter(function(user) {
+    return user.zone === zoneName;
+  });
+
+  if (zoneName === "未入館") {
+    const keyword = document.getElementById("waitingSearch").value.trim().toLowerCase();
+    if (keyword) {
+      zoneUsers = zoneUsers.filter(function(user) {
+        return user.name.toLowerCase().indexOf(keyword) !== -1;
+      });
+    }
+  }
+
+  return zoneUsers;
+}
+
+function renderZones() {
+  const zoneEls = document.querySelectorAll(".zone");
+
+  zoneEls.forEach(function(zoneEl) {
+    const zoneName = zoneEl.getAttribute("data-zone");
+    zoneEl.innerHTML = "";
+
+    if (selectedUser) {
+      zoneEl.classList.add("selected-target");
+    } else {
+      zoneEl.classList.remove("selected-target");
+    }
+
+    const title = document.createElement("div");
+    title.className = "zone-title";
+    title.textContent = zoneName;
+
+    const list = document.createElement("div");
+    list.className = "user-list";
+
+    const zoneUsers = getFilteredZoneUsers(zoneName);
+
+    if (zoneUsers.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = zoneName === "未入館" ? "查無符合名字" : "目前沒有人";
+      list.appendChild(empty);
+    } else {
+      zoneUsers.forEach(function(user) {
+        list.appendChild(createUserChip(user));
+      });
+    }
+
+    zoneEl.appendChild(title);
+    zoneEl.appendChild(list);
+
+    zoneEl.addEventListener("click", function() {
+      moveSelectedTo(zoneName);
+    });
+  });
+}
+
+function renderAll() {
+  if (selectedUser && !users[selectedUser]) {
+    selectedUser = null;
+    saveSelectedUser();
+  }
+
+  renderSelectedInfo();
+  renderZones();
+  updateMemberCounts();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  users = loadUsers();
+  selectedUser = loadSelectedUser();
+
+  document.getElementById("addBtn").addEventListener("click", addUser);
+  document.getElementById("deleteBtn").addEventListener("click", deleteSelectedUser);
+  document.getElementById("waitingSearch").addEventListener("input", renderAll);
+
+  renderAll();
+});
+</script>
+
+</body>
+</html>
