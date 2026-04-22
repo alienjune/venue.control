@@ -406,11 +406,10 @@ function updateMemberCounts() {
   document.getElementById("memberTotalCount").textContent = "總會員人數：" + totalMembers + " 人";
 }
 
-function getFilteredZoneUsers(zoneName); {
+function getFilteredZoneUsers(zoneName) {
   let zoneUsers = Object.values(users).filter(function(user) {
     return user.zone === zoneName;
   });
-
 
   if (zoneName === "未入館") {
     const keyword = document.getElementById("waitingSearch").value.trim().toLowerCase();
@@ -449,7 +448,6 @@ function renderZones() {
     list.className = "user-list";
 
     const zoneUsers = getFilteredZoneUsers(zoneName);
-   
 
     if (zoneUsers.length === 0) {
       const empty = document.createElement("div");
