@@ -147,7 +147,10 @@
   .female-clean { background: #f97316; color: white; }
   .male-staff { background: #facc15; color: #222; }
   .female-staff { background: #f97316; color: white; }
-
+.alert-zone {
+  background: rgba(255, 0, 0, 0.08) !important;
+  border-color: #ef4444 !important;
+}
   .empty {
     color: #999;
     font-size: 14px;
@@ -448,6 +451,27 @@ function renderZones() {
     list.className = "user-list";
 
     const zoneUsers = getFilteredZoneUsers(zoneName);
+   const hasWrongInFemaleBath =
+  zoneName === "女湯" &&
+  zoneUsers.some(function(user) {
+    return user.type === "male" ||
+           user.type === "male-clean" ||
+           user.type === "male-staff";
+  });
+
+const hasWrongInMaleBath =
+  zoneName === "男湯" &&
+  zoneUsers.some(function(user) {
+    return user.type === "female" ||
+           user.type === "female-clean" ||
+           user.type === "female-staff";
+  });
+
+if (hasWrongInFemaleBath || hasWrongInMaleBath) {
+  zoneEl.classList.add("alert-zone");
+} else {
+  zoneEl.classList.remove("alert-zone");
+}
 
     if (zoneUsers.length === 0) {
       const empty = document.createElement("div");
