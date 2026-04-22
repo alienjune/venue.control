@@ -411,28 +411,6 @@ function getFilteredZoneUsers(zoneName); {
     return user.zone === zoneName;
   });
 
- const hasWrongInFemaleBath =
-  zoneName === "女湯" &&
-  zoneUsers.some(user =>
-    user.type === "male" ||
-    user.type === "male-clean" ||
-    user.type === "male-staff"
-  );
-
-const hasWrongInMaleBath =
-  zoneName === "男湯" &&
-  zoneUsers.some(user =>
-    user.type === "female" ||
-    user.type === "female-clean" ||
-    user.type === "female-staff"
-  );
-
-// 🔥 套用警示樣式
-if (hasWrongInFemaleBath || hasWrongInMaleBath) {
-  zoneEl.classList.add("alert-zone");
-} else {
-  zoneEl.classList.remove("alert-zone");
-}
 
   if (zoneName === "未入館") {
     const keyword = document.getElementById("waitingSearch").value.trim().toLowerCase();
@@ -471,6 +449,7 @@ function renderZones() {
     list.className = "user-list";
 
     const zoneUsers = getFilteredZoneUsers(zoneName);
+   
 
     if (zoneUsers.length === 0) {
       const empty = document.createElement("div");
